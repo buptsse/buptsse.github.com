@@ -1,0 +1,15 @@
+---
+layout: post
+title: 用github配置blog
+category: tech
+---
+
+下载模块：用工厂和工人之间的关系来理解。
+
+工人在具体任务开始之后，需要报告工作的进度（下载进度), [subscriber sendNext:progressDic] 这样订阅者（工厂就实时知道某条流水线的进度）
+工厂要反馈给需求方对应的进度
+
+
+
+关于Side Effect
+
