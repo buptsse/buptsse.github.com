@@ -12,7 +12,21 @@ category: tech
 需求（版本一）：
 下载管理器支持并发下载N个任务，在任务下载完成后，取出等待队列中的新任务进行下载。
 
-关于Side Effect
+### 关于Side Effect
+
+{% highlight objc %}
+|- HBPAPI.h
+|- Classes
+    |- HBPAPIManager.h
+    |- HBPAPIManager.m
+    |- Models
+        |- HBPObject.h
+        |- HBPObject.m
+        |- HBPUser.h
+        |- HBPUser.m
+        ...
+{% endhighlight %}
+
 
 RACSignal *signal = [RACSignal createSignal:^ RACDisposable * (id<RACSubscriber> subscriber) {
     NSLog(@"Excute");
