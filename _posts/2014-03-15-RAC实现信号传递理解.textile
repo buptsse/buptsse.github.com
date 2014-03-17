@@ -195,12 +195,9 @@ RACSignal *urlsSignal = [RACObserve(self, urls) filter:^BOOL(NSArray *value) {
 {% endhighlight %}
 
 工厂初始化的时候 _detailSignal 反应 _latestJobDic 的变化。
-{% highlight objc %}
 
-RACSignal *_detailSignal = RACObserve(self, latestJobDic);
 
-{% endhighlight %}
-
+_detailSignal = RACObserve(self, latestJobDic);
 
 
 每个需求方只需要关注自己的下载任务，多余的任务进度它不关心，所以我们可以通过过滤生产一个新的信号给 需求方。
