@@ -14,19 +14,8 @@ category: tech
 
 ### 关于Side Effect
 
-{% highlight objc %}
-|- HBPAPI.h
-|- Classes
-    |- HBPAPIManager.h
-    |- HBPAPIManager.m
-    |- Models
-        |- HBPObject.h
-        |- HBPObject.m
-        |- HBPUser.h
-        |- HBPUser.m
-        ...
-{% endhighlight %}
 
+{% highlight objc %}
 
 RACSignal *signal = [RACSignal createSignal:^ RACDisposable * (id<RACSubscriber> subscriber) {
     NSLog(@"Excute");
@@ -34,6 +23,8 @@ RACSignal *signal = [RACSignal createSignal:^ RACDisposable * (id<RACSubscriber>
     [subscriber sendCompleted];
     return nil;
 }];
+{% endhighlight %}
+
 
 普通情况如上这段代码，如果有N个subscriber，那么signal会被N次触发，控制台里会输出N次Excute。
 如果不想多次输出，可以使用 replay 方法，作用是保证signal只被触发一次，然后把sendNext的value存起来，下次再有新的subscriber时，直接发送缓存的数据。
@@ -45,6 +36,7 @@ RACSignal *signal = [RACSignal createSignal:^ RACDisposable * (id<RACSubscriber>
 那么对于一个新创建的下载任务，我们将会得到一个关于下载任务的信号，通过订阅我们可以知道这个任务当前的下载进度以及下载完成等通知。
 思考：如果这个关于下载任务的信号在多个地方被subscribe，那么就意味着我们的signal会被创建多次，这可不是我们要的。
 那我们用replay方法就可以避免side effect 副作用了.
+
 
 {% highlight objc %}
 - (RACSignal *)fetZipUrl:(NSString *)url
@@ -95,8 +87,8 @@ RACSignal *signal = [RACSignal createSignal:^ RACDisposable * (id<RACSubscriber>
         NSLog(@"Error %@ ",error);
     }] replay];
 }
-
 {% endhighlight %}
+
 
 创建新下载要满足两个条件：等待队列中有等待的任务，有空闲的下载线程
 我们可以将这两个条件理解成两个信号，一旦有一个条件被触发，就同时检查是否满足如上两个条件。
