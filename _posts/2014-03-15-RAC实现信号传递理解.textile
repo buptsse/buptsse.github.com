@@ -196,7 +196,7 @@ RACSignal *urlsSignal = [RACObserve(self, urls) filter:^BOOL(NSArray *value) {
 
 工厂初始化的时候 _detailSignal 反应 _latestJobDic 的变化。
 {% highlight objc %}
-_detailSignal = RACObserve(self, latestJobDic);
+  RACSignal *_detailSignal = RACObserve(self, latestJobDic);
 {% endhighlight %}
 
 
