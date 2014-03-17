@@ -95,31 +95,31 @@ RACSignal *signal = [RACSignal createSignal:^ RACDisposable * (id<RACSubscriber>
 这样这两个信号又被我们合并成一个信号，这个信号输出 是否满足条件的bool值
 
 {% highlight  objc %}
-		RACSignal *urlsSignal = [RACObserve(self, urls) filter:^BOOL(NSArray *value) {
+RACSignal *urlsSignal = [RACObserve(self, urls) filter:^BOOL(NSArray *value) {
             return [value count] > 0;
-        }];
+        }];		
         
-        //说明：freeWorkers是一个mutableArray，如果并发下载为N，那么freeWokers数组中就有N个下载工人可以同时开展下载任务。
-        RACSignal *freeWorkersSignal = [RACObserve(self,freeWorkers) filter:^BOOL(NSArray *value) {
+ //说明：freeWorkers是一个mutableArray，如果并发下载为N，那么freeWokers数组中就有N个下载工人可以同时开展下载任务。
+ RACSignal *freeWorkersSignal = [RACObserve(self,freeWorkers) filter:^BOOL(NSArray *value) {
             return [value count] > 0;
-        }];
+        }];              
         
-        
-        [[[RACSignal combineLatest:@[urlsSignal, freeWorkersSignal] reduce:^(NSArray *urls, NSArray *freeworkers){
+[[[RACSignal combineLatest:@[urlsSignal, freeWorkersSignal] reduce:^(NSArray *urls, NSArray *freeworkers){
             if ([urls count] > 0 && [freeworkers count] > 0) return @(YES);
             else return @(NO);
         }]filter:^BOOL(NSValue *value) {
             return [value  isEqualToValue:@(YES)];
-        }]	subscribeNext:^(id x) {
-    		//一旦满足这两个条件的信号出现， 我们就可以创建一个新的下载任务。
-    		RACSignal *jobSignal = [self setupNewJob];
+        }]  subscribeNext:^(id x) {
+            //一旦满足这两个条件的信号出现， 我们就可以创建一个新的下载任务。
+            RACSignal *jobSignal = [self setupNewJob];
 
-    		 [jobSignal subscribeCompleted:^{
-    		    //下载完成后，我们需要 通过改变self.urls 触发urlsSignal 检查 是否有新任务可以创建
+             [jobSignal subscribeCompleted:^{
+                //下载完成后，我们需要 通过改变self.urls 触发urlsSignal 检查 是否有新任务可以创建
                 NSMutableArray *t = [[NSMutableArray alloc] initWithArray:_urls];
                 self.urls = t;
             }];
-    	}];
+        }];        
+        
 
 {% endhighlight %}
 
