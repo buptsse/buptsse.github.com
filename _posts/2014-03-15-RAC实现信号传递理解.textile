@@ -106,21 +106,26 @@ RACSignal *urlsSignal = [RACObserve(self, urls) filter:^BOOL(NSArray *value) {
  RACSignal *freeWorkersSignal = [RACObserve(self,freeWorkers) filter:^BOOL(NSArray *value) {
             return [value count] > 0;
         }];              
-        
- [[[[RACSignal combineLatest:@[urlsSignal, freeWorkersSignal] reduce:^(NSArray *urls, NSArray *freeworkers){
+
+        [[[RACSignal combineLatest:@[urlsSignal, freeWorkersSignal] reduce:^(NSArray *urls, NSArray *freeworkers){
             if ([urls count] > 0 && [freeworkers count] > 0) return @(YES);
             else return @(NO);
         }]filter:^BOOL(NSValue *value) {
             return [value  isEqualToValue:@(YES)];
-        }] flattenMap:^id(id value) {
-            return [self setupNewJob];
-        }] subscribeNext:^(NSDictionary *x) {
-            self.latestJobDic = x;
-        } completed:^{
-           //下载完成后，我们需要 通过改变self.urls 触发urlsSignal 检查 是否有新任务可以创建
-            NSMutableArray *t = [[NSMutableArray alloc] initWithArray:_urls];
-            self.urls = t;
-        }];    
+        }] subscribeNext:^(id x) {
+            
+            RACSignal *jobSignal = [self setupNewJob];
+
+            [jobSignal subscribeCompleted:^{
+                //下载完成后，我们需要 通过改变self.urls 触发urlsSignal 检查 是否有新任务可以创建
+                NSMutableArray *t = [[NSMutableArray alloc] initWithArray:_urls];
+                self.urls = t;
+            }];
+            [jobSignal subscribeNext:^(id x) {
+                self.latestJobDic = x;
+            }];
+        }];
+
 
 {% endhighlight %}
 
