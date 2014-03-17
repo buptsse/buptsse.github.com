@@ -66,6 +66,8 @@ RACSignal *signal = [RACSignal createSignal:^ RACDisposable * (id<RACSubscriber>
         NSLog(@"filePath :%@",documentsDirectory);
         
         [request setCompletionBlock:^{
+            NSDictionary *progressDic = @{@"ID":md5Name,@"Progress":@(YES),@"Url":url};
+            [subscriber sendNext:progressDic];
             [subscriber sendCompleted];
         }];
         [request setFailedBlock:^{
@@ -76,7 +78,7 @@ RACSignal *signal = [RACSignal createSignal:^ RACDisposable * (id<RACSubscriber>
 
         
         [RACObserve(downloadProgess, progress) subscribeNext:^(id x) {
-            NSDictionary *progressDic = @{@"ID":md5Name,@"Progress":x};
+            NSDictionary *progressDic = @{@"ID":md5Name,@"Progress":x,@"Url":url};
             [subscriber sendNext:progressDic];
         }];
         
@@ -92,7 +94,8 @@ RACSignal *signal = [RACSignal createSignal:^ RACDisposable * (id<RACSubscriber>
 
 创建新下载要满足两个条件：等待队列中有等待的任务，有空闲的下载线程
 我们可以将这两个条件理解成两个信号，一旦有一个条件被触发，就同时检查是否满足如上两个条件。
-这样这两个信号又被我们合并成一个信号，这个信号输出 是否满足条件的bool值
+这样这两个信号又被我们合并成一个信号，这个信号输出 是否满足条件的bool值.
+然后通过flattenmap成一个下载的信号.
 
 {% highlight  objc %}
 RACSignal *urlsSignal = [RACObserve(self, urls) filter:^BOOL(NSArray *value) {
@@ -104,22 +107,20 @@ RACSignal *urlsSignal = [RACObserve(self, urls) filter:^BOOL(NSArray *value) {
             return [value count] > 0;
         }];              
         
-[[[RACSignal combineLatest:@[urlsSignal, freeWorkersSignal] reduce:^(NSArray *urls, NSArray *freeworkers){
+ [[[[RACSignal combineLatest:@[urlsSignal, freeWorkersSignal] reduce:^(NSArray *urls, NSArray *freeworkers){
             if ([urls count] > 0 && [freeworkers count] > 0) return @(YES);
             else return @(NO);
         }]filter:^BOOL(NSValue *value) {
             return [value  isEqualToValue:@(YES)];
-        }]  subscribeNext:^(id x) {
-            //一旦满足这两个条件的信号出现， 我们就可以创建一个新的下载任务。
-            RACSignal *jobSignal = [self setupNewJob];
-
-             [jobSignal subscribeCompleted:^{
-                //下载完成后，我们需要 通过改变self.urls 触发urlsSignal 检查 是否有新任务可以创建
-                NSMutableArray *t = [[NSMutableArray alloc] initWithArray:_urls];
-                self.urls = t;
-            }];
-        }];        
-        
+        }] flattenMap:^id(id value) {
+            return [self setupNewJob];
+        }] subscribeNext:^(NSDictionary *x) {
+            self.latestJobDic = x;
+        } completed:^{
+           //下载完成后，我们需要 通过改变self.urls 触发urlsSignal 检查 是否有新任务可以创建
+            NSMutableArray *t = [[NSMutableArray alloc] initWithArray:_urls];
+            self.urls = t;
+        }];    
 
 {% endhighlight %}
 
@@ -167,13 +168,58 @@ RACSignal *urlsSignal = [RACObserve(self, urls) filter:^BOOL(NSArray *value) {
 {% endhighlight %}
 
 
-这个版本应该可以代码再改造一下。按照信号流的理念来做。
-
-urlsSignal,freeWorkersSignal 的输出 作为新的输入
 
 
+有了大概的逻辑,现在我们需求方 交给工厂之后 需要关注一下 任务的进度,当然进度颗粒度我们可以自己控制.
+比如说我们现在暴露给需求方的接口是 
 
+{% highlight objc %}
+-(RACSignal *)fetZipUrls:(NSArray *)urls
+{% endhighlight %}
 
+需求方拿到这个信号，我们的工厂就可以通过这个信号传递当前的任务进度给需求方。
+如果现在 需求方要求的颗粒度比较细.需要具体某一个任务的下载百分比.
+那么我们可以定义一个_detailSignal,这个signal观察最近的进度变化，反馈给需求方
+
+{% highlight objc %}
+@implementation LVDownloadFactory{
+    NSDictionary  *_latestJobDic;
+    RACSignal *_globleSignal; //所有任务宏观进度信号
+    RACSignal *_detailSignal; //每个任务微观进度信号
+    
+     NSMutableArray *_urls;    //等待下载的队列
+     NSMutableArray *_freeWorkers; //处于空闲工人队列
+     NSMutableArray *_busyWorkers; //执行任务工人队列
+}
+
+{% endhighlight %}
+
+工厂初始化的时候 _detailSignal 反应 _latestJobDic 的变化。
+{% highlight objc %}
+     _detailSignal = RACObserve(self, latestJobDic);
+{% endhighlight %}
+
+每个需求方只需要关注自己的下载任务，多余的任务进度它不关心，所以我们可以通过过滤生产一个新的信号给 需求方。
+
+{% highlight objc %}
+-(RACSignal *)fetZipUrls:(NSArray *)urls
+{
+    NSMutableArray *t = [[NSMutableArray alloc] initWithArray:_urls];
+    [t addObjectsFromArray:urls];
+    self.urls = t;
+    
+    return  [_detailSignal filter:^BOOL(NSDictionary *value) {
+        for (NSString *url in urls) {
+            if ([[value objectForKey:@"Url"] isEqualToString:url]) {
+                return YES;
+            }
+        }
+        return NO;
+    }];
+}
+{% endhighlight %}
+
+附上此段源代码地址。
 
 
 
