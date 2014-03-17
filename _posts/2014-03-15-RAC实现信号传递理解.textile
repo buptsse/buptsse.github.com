@@ -1,6 +1,6 @@
 ---
 layout: post
-title: 用github配置blog
+title: RAC实现信号传递理解
 category: tech
 ---
 
